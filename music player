@@ -1,0 +1,321 @@
+--@name music_parser_ultralite_V1.4
+--@author valera
+--@include https://github.com/Jacbo1/Public-Starfall/raw/main/SafeNet/safeNet.lua as Net.txt
+--@include https://github.com/kekobka/hedge/raw/main/FileMyMusic as safeMusic.txt
+--@model models/props_lab/reciever01d.mdl
+dofile("Net.txt")
+dofile("safeMusic.txt")
+
+local FPS = 24
+local fade = 1000
+local net = safeNet
+
+local commands = {
+                "!па",         --pause                    (1)
+                "!гр ",        --volume                   (2)
+                "!pi ",          --pitch                    (3)
+                "!пл",         --play                     (4)
+                "!пер ",      --peremotka +time          (5) !per +50 !per -50
+                "!вкл ",      --on+ID                    (6)
+                "!моя",       --my music                 (7)
+                "!доб ",      --add to my music          (8) !dob №
+                "!удал ",    --remove from my music     (9)
+                "!след",     --next music               (10)
+                "!повтор", --reply                    (11)
+                "!2д",          --2d 3d changing           (12)
+                "!u ",           --url sound                (13)
+                "!r",            --random sound             (14)
+                "!!",            --search (!!zapros)        (15)
+                "!G+ ",          --add Ply to owners        (16)
+                "!G- ",          --delete Ply from owners   (17)
+                }
+
+local function urlEncode(url)
+
+    local function charToHex(char)
+        return string.format('%%%02X', string.byte(char))
+    end
+    url = string.gsub(url, '\n', '\r\n')
+    url = string.gsub(url, '([,])', charToHex)
+    url = string.gsub(url, ' ', "+")
+    
+    return url
+end
+local owners = {owner()}
+if SERVER then
+
+    hook.add('PlayerSay', 'PlayerSay', function(ply, text)
+        for _, owne in pairs(owners) do
+            if owner() == owne then
+                if text:sub(1,commands[16]:len()) == commands[16] then
+                    local ply = find.playersByName(text:sub(commands[16]:len()+1))[1]
+                    if not isValid(ply) then print("nill Player") return "" end
+                    print("Added: "..ply:getName())
+                    table.forceInsert(owners,ply)
+                return "" end
+                if text:sub(1,commands[17]:len()) == commands[17] then
+                    local plyrem = find.playersByName(text:sub(commands[17]:len()+1))[1]
+                    if not isValid(plyrem) then print("nill Player") return "" end
+                    for k,ply in pairs(owners) do
+                        if ply == plyrem then
+                            table.remove(owners,k)
+                            print("Removed: "..ply:getName())
+                        end
+                    end
+                return "" end
+            end
+            if ply == owne then
+                for id , command in pairs(commands) do
+                        if text:sub(1, command:len())==command then
+                            net.start("get")
+                            net.writeString(text)
+                            net.send(nil,false)
+                            return ""
+                        end
+                    end
+
+            end
+        end
+    end)
+    
+    net.receive("bass",function()
+        local Bass = net.readString()
+        local name = net.readString()
+        net.start("client")
+        net.writeString(Bass)
+        net.writeString(name)
+        net.send(nil,false)
+    end)
+    
+else 
+    
+    local soundParent = chip()
+    Musicsafe = {}
+        permissionSatisfied = hasPermission("bass.loadURL","https://ruy.zvukofon.com/music/") 
+    if not permissionSatisfied then setName("[Music] Playing: PRESS E") setupPermissionRequest({ "bass.loadURL","material.urlcreate" }, "See an example of bass.loadURL.", true) end
+    
+    hook.add("permissionrequest", "bassrqu", function()
+        permissionSatisfied = hasPermission("bass.loadURL","https://ruy.zvukofon.com/music/")
+        hook.remove("permissionrequest","bassrqu")
+        setName(CNam)
+    end)
+    local succes,Music,MusicNames,MusicNames1,Volume,Pitch = true,{},{},{},1,1
+    
+    function sendBass(name,mus)
+        print(name)
+        net.start("bass")
+        net.writeString(mus)
+        net.writeString(name)
+        net.send() 
+    end
+    
+    function nextMusic()
+        if replay or next or #Musicsafe < 2 then return end
+        next = true
+        albomID = albomID or 0
+        albomID = albomID + 1
+        if albomID > #Musicsafe then albomID = 1 end
+        sendBass(
+        MusicNames1[math.clamp(albomID,1,#Musicsafe)],
+        Musicsafe[math.clamp(albomID,1,#Musicsafe)]
+        )
+    end
+    
+    function randChar()
+        local RandChar = ""
+        for i = 1 ,4 do
+            RandChar = RandChar..table.random(string.toTable("qwertyuiopasdfghjklzxcvbnm"))
+        end
+        return RandChar
+    end
+    
+    function setSound(check,name)
+        if not succes or not permissionSatisfied or bass.soundsLeft() < 1 then return end
+        setName(CNam)
+        succes = false
+        lastS = lastS or ""
+        if lastS == check then setName("[Music] Playing: "..name) succes = true if not Online then sound:setTime(0) end return end
+        if player() == owner() then notification.addProgress("loading", "Loading sound...") end
+        bass.loadURL(check,"3d noblock",function(snd,err,name1)
+            if not isValid(snd) then next = false succes = true print("sound error") if player() == owner() then notification.addProgress("loading", "Failed!") notification.kill("loading") end return end
+            if isValid(sound) then sound:stop() end
+            if player() == owner() then notification.addProgress("loading", "Loaded!") notification.kill("loading") end
+            Online = snd:getLength() < 0.1
+            lastS = check
+            setName("[Music] Playing: "..name)
+            Pause,succes,sound,next = false,true,snd,false
+            hook.add("think","setMusic",setMusicPos)
+            snd:setPos(soundParent:getPos())
+            snd:setVolume(Volume)
+            snd:setPitch(Pitch)
+            if replay and Online then replay = false end
+            snd:setLooping(replay)
+        end)
+    end
+    
+    function updateMyMusic()
+        checkMyMusic()
+        local data = getTableData()
+        Musicsafe,musicCovers1,MusicNames1 = {},{},{}
+        for id,Music in pairs(data) do
+            table.insert(Musicsafe,id,getHttp(id))
+            table.insert(musicCovers1,id,getCover(id))
+            table.insert(MusicNames1,id,id..": "..getName(id))
+            printConsole(id..": "..getName(id))
+        end
+    end
+    
+    function setMusicPos()
+        if not D2 then 
+            musvol, musPos = Volume-(eyePos()):getDistance(soundParent:getPos())/(fade/Volume), soundParent:getPos()
+        else
+            musvol, musPos = Volume-(eyePos()):getDistance(soundParent:getPos())/(fade/Volume),eyePos()+eyeVector()*50
+        end
+        if isValid(sound) and isValid(soundParent) then sound:setVolume(musvol) sound:setPos(musPos) else hook.remove("think","setMusic") end
+        if player() == owner() and sound:getTime() >= sound:getLength()-1 then if sound:getLength()<0.1 then return end nextMusic() end 
+    end
+    
+    MusicData = {}
+    net.receive("get",function()
+        sthin = net.readString()
+        sound = sound or nil
+        --if sthin == commands[1] and isValid(sound) then sound:stop() return end
+        if sthin == commands[1] and isValid(sound) and not Pause then sound:pause() Pause = true print("Paused") return end
+        if sthin == commands[4] and isValid(sound) and Pause then sound:play() Pause = false print("Play")  return end
+        if sthin:sub(1,commands[2]:len()) == commands[2] and isValid(sound) then if tonumber(sthin:sub(commands[2]:len())) == nil then return end Volume = math.clamp(tonumber(sthin:sub(commands[2]:len()))/10,0,10) sound:setVolume(tonumber(sthin:sub(commands[2]:len()))/10) print("Volume: "..Volume*10 .."%") return end
+        if sthin:sub(1,commands[3]:len()) == commands[3] and isValid(sound) then if tonumber(sthin:sub(commands[3]:len())) == nil then return end Pitch = tonumber(sthin:sub(commands[3]:len()))/100 sound:setPitch(tonumber(sthin:sub(commands[3]:len()))/100) print("Pitch: "..Pitch*100 .."%") return end
+        if sthin:sub(1,commands[5]:len()) == commands[5] and isValid(sound) and not Online then if tonumber(sthin:sub(commands[5]:len())) == nil then return end sound:setTime(math.clamp(sound:getTime()+(tonumber(sthin:sub(commands[5]:len()))),0,sound:getLength())) return end
+        if sthin:sub(1,commands[11]:len()) == commands[11] and isValid(sound) and not Online then replay = !replay if replay then sound:setLooping(replay) print("повтор включен!") else sound:setLooping(replay) print("повтор выключен!") end return end
+        if sthin:sub(1,commands[12]:len()) == commands[12] then D2 = !D2 if D2 then print("2D звук вкл!") else print("2D звук выкл!") end return end
+        if sthin:sub(1,commands[13]:len()) == commands[13] then setSound(sthin:sub(commands[13]:len()+1),"URL RADIO") return end
+        if sthin:sub(1,commands[14]:len()) == commands[14] then sthin = commands[15]..urlEncode(randChar()) end
+        if player()==owner() then
+            
+            if sthin:sub(1,commands[6]:len()) == commands[6] and #Musicsafe > 0 then 
+                if tonumber(sthin:sub(commands[6]:len())) == nil then sthin = commands[6]..tostring(math.random(1,#Musicsafe)) end
+                albomID = math.clamp(tonumber(sthin:sub(commands[6]:len())),1,#Musicsafe)
+                sendBass(
+                MusicNames1[math.clamp(tonumber(sthin:sub(commands[6]:len())),1,#MusicNames1)],
+                Musicsafe[math.clamp(tonumber(sthin:sub(commands[6]:len())),1,#Musicsafe)]
+                )
+            return end
+            if sthin:sub(1,commands[7]:len()) == commands[7] then MusicData = {} updateMyMusic() return end
+            if sthin:sub(1,commands[8]:len()) == commands[8] and #MusicData > 0 then
+                if tonumber(sthin:sub(commands[8]:len())) > #MusicData then print("Invalid ID") return end
+                addMusic(MusicData[math.clamp(tonumber(sthin:sub(commands[8]:len())),1,#MusicData)])
+                print("Добавлен: "..MusicNames1[math.clamp(tonumber(sthin:sub(commands[8]:len())),1,#MusicNames1)])
+            return end
+            if sthin:sub(1,commands[9]:len()) == commands[9] and #getTableData() > 0 then
+                if tonumber(sthin:sub(commands[9]:len())) > #getTableData() then print("Invalid ID") return end
+                print("Удален: "..getName(math.clamp(tonumber(sthin:sub(commands[9]:len())),1,#getTableData())))
+                removeMusic(math.clamp(tonumber(sthin:sub(commands[9]:len())),1,#getTableData()))
+                updateMyMusic()
+            return end
+            if sthin:sub(1,commands[10]:len()) == commands[10] and #Musicsafe > 0 then nextMusic() return end
+            --if owner():getSteamID() != "STEAM_0:0:186583728" then error("YOU ARE NOT THE OWNER") end 
+            function finder(txt,from,to,number,subFrom,subTo,pattern)
+                local F = string.find(txt,from,number,pattern)
+                if not F then return nil,"" end
+                local F2 = string.find(txt,to,F,pattern)
+                return F, string.sub(txt,F+subFrom,F2+subTo)
+            end
+            if sthin:sub(1,commands[15]:len()) == commands[15] then
+                if not http.canRequest() then return end
+                http.get("https://ruy.zvukofon.com/music/"..urlEncode(sthin:sub(commands[15]:len()+1)), function(pars)
+                    MusicData,Music,MusicNames,Musicnames2,musicCovers,patternSAFE,patternSAFE2,numbF,numbF2,numbF3,numbF4 = {},{},{},{},{},string.patternSafe("mp3"),string.patternSafe("class"),0,0,0,0            
+                    
+                    for id = 1,50 do
+                        if numbF == nil then continue end
+                         numbF, HTTPMusic = finder(pars,'href="/dl/','class="topcharts__item-info-btn topcharts__item-info-btn_download text-hide d-block"',numbF + 50,6,-3,patternSAFE)
+                        if HTTPMusic == "" then continue end
+                         numbF2, NameMusic = finder(pars,'topcharts__item-title-track','</span>',numbF2 + 500,29,-1,patternSAFE2)
+                         numbF3, ArtistMusic = finder(pars,'topcharts__item-title-artist','</span>',numbF3 + 50,30,-1,patternSAFE2)
+                        if numbF4 == nil then continue end
+                         numbF4, CoverMusic = finder(pars,"style=\"background-image: url('/cover",".jpg');",numbF4 + 50,30,3,patternSAFE2)
+                        if CoverMusic then
+                            CoverMusic = string.replace(string.replace(CoverMusic,"75", "300"),"150", "300")
+                            table.insert(musicCovers,id,"https://ruy.zvukofon.com"..CoverMusic)
+                        end
+                        
+                        pars = string.replace(pars,HTTPMusic, " ")
+                        table.insert(Music,id,"https://ruy.zvukofon.com"..HTTPMusic)
+                        table.insert(Musicnames2,id,id..": "..ArtistMusic.." - "..NameMusic)
+                        printConsole(id..": "..ArtistMusic.." - "..NameMusic)
+                        table.insert(MusicData,id,(ArtistMusic or "").." - "..(NameMusic or "").."@#"..(musicCovers[id] or "").."@#"..(Music[id] or ""))
+                    end 
+                    
+                    if #Music == 0 then print("no music") return end
+                    print("Founded!")
+                    print("Check console!")
+                    Musicsafe,MusicNames1,musicCovers1 = Music,Musicnames2,musicCovers
+                    albomID = 1
+                    sendBass(
+                    MusicNames1[math.clamp(1,1,#MusicNames1)],
+                    Musicsafe[math.clamp(1,1,#Musicsafe)]
+                    )
+                    
+                end)
+            end
+        end
+    end)
+
+    net.receive("client",function()
+        local basss = net.readString()
+        local name = net.readString()
+        setSound(basss,name)
+    end)
+
+    CNam = string.gsub(chip():getChipName(),'_',' ')
+    local next_frame = 0
+    local fps_delta = 1/FPS
+    render.createRenderTarget("screenRT")
+    local screenMat = material.create("VertexLitGeneric") 
+    screenMat:setTextureRenderTarget("$basetexture", "screenRT") 
+    screenMat:setInt("$flags", 138414080)
+    Font = render.createFont("HudNumbers", 250,1000000,false,false,true,true,true,true,0)
+    local screen = holograms.create(chip():localToWorld(Vector(5.75, -2.7, -0.4)), chip():getAngles()+Angle(90,0,0), "models/holograms/plane.mdl")
+    screen:setSize(Vector(2.45, 5, 1))
+    screen:setParent(chip())
+
+    screen:setMaterial("!" .. screenMat:getName())
+
+    hook.add("renderoffscreen", "", function()
+
+        local now = timer.systime()
+        if next_frame > now then return end
+        next_frame = now + fps_delta
+
+        render.setFilterMin(1)
+        render.setFilterMag(1)
+        render.selectRenderTarget("screenRT")
+        render.clear() 
+        render.setColor(Color(84,139,84))
+        render.drawRect(0,0,1024,1024)
+        render.setColor(Color(139*0.3,126*0.3,102*0.3))
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    render.setFont("CloseCaption_Bold")                                                                                                                                                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    render.drawSimpleText(512-render.getTextSize(CNam)/2,24,CNam)                                                                                                                                                                                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    render.setFont("CloseCaption_BoldItalic")                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    render.drawSimpleText(512-render.getTextSize("By valera 41")/2,1000,"By valera 41")                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+        if string.gsub(chip():getChipName(),'_',' ') == CNam then return end
+        now2 = (now2 or 0) + fps_delta*512
+        render.setFont(Font)
+        local S,SS = render.getTextSize(chip():getChipName():sub(17))
+
+        if now2 >= 1024 + S then now2 = 0 end
+        render.drawText(1024-now2,324-SS/2,chip():getChipName():sub(17))
+        if not isValid(sound) then return end
+        if Online then 
+        local T,TT = render.getTextSize("FM")
+        render.drawText(512-T/2,700-TT/2,"FM")
+        return end
+        local Tim = sound:getLength() - sound:getTime()
+        local T,TT = render.getTextSize(string.toMinutesSeconds(Tim))
+        render.drawText(512-T/2,700-TT/2,string.toMinutesSeconds(Tim))
+    end)
+end
+
+local oldPrint = print
+
+function print(...)
+    oldPrint(Color(100, 255, 100), "[Music] ", Color(255, 255, 255), ...)
+end
