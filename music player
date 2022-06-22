@@ -2,7 +2,6 @@
 --@author valera
 --@include https://github.com/Jacbo1/Public-Starfall/raw/main/SafeNet/safeNet.lua as Net.txt
 --@include https://github.com/kekobka/valera/raw/main/FileMyMusic as safeMusic.txt
---@include https://github.com/kekobka/valera/raw/main/Bass as Bass.txt
 --@include https://github.com/kekobka/valera/raw/main/Commands as Commands.txt
 --@model models/props_lab/reciever01d.mdl
 dofile("Net.txt")
