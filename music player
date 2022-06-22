@@ -169,7 +169,6 @@ else
 net.receive("get",function()
         sthin = net.readString()
         sound = sound or nil
-        --if sthin == commands[1] and isValid(sound) then sound:stop() return end
         if sthin == commands[1] and isValid(sound) and not Pause then sound:pause() Pause = true print("Paused") return end
         if sthin == commands[4] and isValid(sound) and Pause then sound:play() Pause = false print("Play")  return end
         if sthin:sub(1,commands[2]:len()) == commands[2] and isValid(sound) then if tonumber(sthin:sub(commands[2]:len())) == nil then return end Volume = math.clamp(tonumber(sthin:sub(commands[2]:len()))/10,0,10) sound:setVolume(tonumber(sthin:sub(commands[2]:len()))/10) print("Volume: "..Volume*10 .."%") return end
@@ -202,7 +201,6 @@ net.receive("get",function()
                 updateMyMusic()
             return end
             if sthin:sub(1,commands[10]:len()) == commands[10] and #Musicsafe > 0 then nextMusic() return end
-            --if owner():getSteamID() != "STEAM_0:0:186583728" then error("YOU ARE NOT THE OWNER") end 
             function finder(txt,from,to,number,subFrom,subTo,pattern)
                 local F = string.find(txt,from,number,pattern)
                 if not F then return nil,"" end
