@@ -2,33 +2,17 @@
 --@author valera
 --@include https://github.com/Jacbo1/Public-Starfall/raw/main/SafeNet/safeNet.lua as Net.txt
 --@include https://github.com/kekobka/valera/raw/main/FileMyMusic as safeMusic.txt
+--@include https://github.com/kekobka/valera/raw/main/Bass as Bass.txt
+--@include https://github.com/kekobka/valera/raw/main/Commands as Commands.txt
 --@model models/props_lab/reciever01d.mdl
 dofile("Net.txt")
 dofile("safeMusic.txt")
+commands = require("Commands.txt")
 
 local FPS = 24
 local fade = 1000
 local net = safeNet
 
-local commands = {
-                "!па",         --pause                    (1)
-                "!гр ",        --volume                   (2)
-                "!pi ",          --pitch                    (3)
-                "!пл",         --play                     (4)
-                "!пер ",      --peremotka +time          (5) !per +50 !per -50
-                "!вкл ",      --on+ID                    (6)
-                "!моя",       --my music                 (7)
-                "!доб ",      --add to my music          (8) !dob №
-                "!удал ",    --remove from my music     (9)
-                "!след",     --next music               (10)
-                "!повтор", --reply                    (11)
-                "!2д",          --2d 3d changing           (12)
-                "!u ",           --url sound                (13)
-                "!r",            --random sound             (14)
-                "!!",            --search (!!zapros)        (15)
-                "!G+ ",          --add Ply to owners        (16)
-                "!G- ",          --delete Ply from owners   (17)
-                }
 
 local function urlEncode(url)
 
@@ -66,14 +50,13 @@ if SERVER then
             end
             if ply == owne then
                 for id , command in pairs(commands) do
-                        if text:sub(1, command:len())==command then
-                            net.start("get")
-                            net.writeString(text)
-                            net.send(nil,false)
-                            return ""
-                        end
+                    if text:sub(1, command:len())==command then
+                        net.start("get")
+                        net.writeString(text)
+                        net.send(nil,false)
+                        return ""
                     end
-
+                end
             end
         end
     end)
@@ -88,7 +71,6 @@ if SERVER then
     end)
     
 else 
-    
     local soundParent = chip()
     Musicsafe = {}
         permissionSatisfied = hasPermission("bass.loadURL","https://ruy.zvukofon.com/music/") 
@@ -176,7 +158,15 @@ else
     end
     
     MusicData = {}
-    net.receive("get",function()
+
+
+    net.receive("client",function()
+        local basss = net.readString()
+        local name = net.readString()
+        setSound(basss,name)
+    end)
+
+net.receive("get",function()
         sthin = net.readString()
         sound = sound or nil
         --if sthin == commands[1] and isValid(sound) then sound:stop() return end
@@ -185,8 +175,8 @@ else
         if sthin:sub(1,commands[2]:len()) == commands[2] and isValid(sound) then if tonumber(sthin:sub(commands[2]:len())) == nil then return end Volume = math.clamp(tonumber(sthin:sub(commands[2]:len()))/10,0,10) sound:setVolume(tonumber(sthin:sub(commands[2]:len()))/10) print("Volume: "..Volume*10 .."%") return end
         if sthin:sub(1,commands[3]:len()) == commands[3] and isValid(sound) then if tonumber(sthin:sub(commands[3]:len())) == nil then return end Pitch = tonumber(sthin:sub(commands[3]:len()))/100 sound:setPitch(tonumber(sthin:sub(commands[3]:len()))/100) print("Pitch: "..Pitch*100 .."%") return end
         if sthin:sub(1,commands[5]:len()) == commands[5] and isValid(sound) and not Online then if tonumber(sthin:sub(commands[5]:len())) == nil then return end sound:setTime(math.clamp(sound:getTime()+(tonumber(sthin:sub(commands[5]:len()))),0,sound:getLength())) return end
-        if sthin:sub(1,commands[11]:len()) == commands[11] and isValid(sound) and not Online then replay = !replay if replay then sound:setLooping(replay) print("повтор включен!") else sound:setLooping(replay) print("повтор выключен!") end return end
-        if sthin:sub(1,commands[12]:len()) == commands[12] then D2 = !D2 if D2 then print("2D звук вкл!") else print("2D звук выкл!") end return end
+        if sthin:sub(1,commands[11]:len()) == commands[11] and isValid(sound) and not Online then replay = !replay if replay then sound:setLooping(replay) print("replay on!") else sound:setLooping(replay) print("replay off!") end return end
+        if sthin:sub(1,commands[12]:len()) == commands[12] then D2 = !D2 if D2 then print("2D on!") else print("2D off!") end return end
         if sthin:sub(1,commands[13]:len()) == commands[13] then setSound(sthin:sub(commands[13]:len()+1),"URL RADIO") return end
         if sthin:sub(1,commands[14]:len()) == commands[14] then sthin = commands[15]..urlEncode(randChar()) end
         if player()==owner() then
@@ -203,12 +193,12 @@ else
             if sthin:sub(1,commands[8]:len()) == commands[8] and #MusicData > 0 then
                 if tonumber(sthin:sub(commands[8]:len())) > #MusicData then print("Invalid ID") return end
                 addMusic(MusicData[math.clamp(tonumber(sthin:sub(commands[8]:len())),1,#MusicData)])
-                print("Добавлен: "..MusicNames1[math.clamp(tonumber(sthin:sub(commands[8]:len())),1,#MusicNames1)])
+                print("Added: "..MusicNames1[math.clamp(tonumber(sthin:sub(commands[8]:len())),1,#MusicNames1)])
             return end
             if sthin:sub(1,commands[9]:len()) == commands[9] and #getTableData() > 0 then
                 if tonumber(sthin:sub(commands[9]:len())) > #getTableData() then print("Invalid ID") return end
-                print("Удален: "..getName(math.clamp(tonumber(sthin:sub(commands[9]:len())),1,#getTableData())))
                 removeMusic(math.clamp(tonumber(sthin:sub(commands[9]:len())),1,#getTableData()))
+                print("Removed: "..getName(math.clamp(tonumber(sthin:sub(commands[9]:len())),1,#getTableData())))
                 updateMyMusic()
             return end
             if sthin:sub(1,commands[10]:len()) == commands[10] and #Musicsafe > 0 then nextMusic() return end
@@ -258,13 +248,6 @@ else
             end
         end
     end)
-
-    net.receive("client",function()
-        local basss = net.readString()
-        local name = net.readString()
-        setSound(basss,name)
-    end)
-
     CNam = string.gsub(chip():getChipName(),'_',' ')
     local next_frame = 0
     local fps_delta = 1/FPS
