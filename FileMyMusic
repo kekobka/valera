@@ -1,0 +1,82 @@
+--@name FileMyMusic
+--@author valera
+--@client
+
+local name = "myMusic"..".txt"
+table.forceInsert(commands,"awd")
+function checkMyMusic()
+    if file.exists(name) then
+        return file.exists(name)
+    else
+        file.write(name,"")
+        print(name.." Created")
+        return file.exists(name)
+    end
+end
+
+function read()
+    return file.read(name)
+end
+
+function freeID()
+    I = 1
+    for id = 2 , #string.explode("@#", read()) ,4 do
+        if I != tonumber(string.explode("@#", read())[id]) then continue end
+        I = I + 1
+    end
+    return I 
+end
+
+
+
+function addMusic(data)
+    local id = freeID()-1
+    local id2 = freeID()
+    local data = "@#"..freeID().."@#"..data
+    local check = string.explode("@#", read())[(4*id)+1]
+    local check2 = string.explode("@#", read())[(4*id2)]
+    if not check2 then file.append(name,data)
+    else
+        local str = string.explode("@", read())
+        local localData = ""
+        for I = 1 , #str do 
+            localData = localData..string.gsub(str[I],"#","@#")
+            if str[I]=="#"..check then localData = localData..data end
+        end
+        file.write(name,localData)
+    end
+    return true
+end
+function removeMusic(id)
+        local localData = getData(id)
+        local localData = string.replace(read(),localData,"")
+        for I = id, #getTableData() do
+            local loc = getData(I)
+            if loc == "" then continue end
+            localData = string.replace(localData,loc,"@#"..(I-1).."@#"..getName(I).."@#"..getCover(I).."@#"..getHttp(I))
+        end 
+        file.write(name,localData)
+end
+
+function getHttp(id)
+    return string.explode("@#", read())[(4*id)+1]
+end
+function getCover(id)
+    return string.explode("@#", read())[(4*id)]
+end
+function getName(id)
+    return string.explode("@#", read())[(4*id)-1]
+end
+function getData(id)
+    if getName(id) == nil then return "" end
+    return "@#"..id.."@#"..getName(id).."@#"..getCover(id).."@#"..getHttp(id)
+end
+
+function getTableData()
+    local tabl = {}
+    for I = 1 , 50 do
+        if getData(I) == "" then continue end
+        table.insert(tabl,I,getData(I))
+    end
+    return tabl
+end
