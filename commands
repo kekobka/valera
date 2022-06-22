@@ -1,0 +1,19 @@
+commands = {
+                "!па",         --pause                    (1)
+                "!гр ",        --volume                   (2)
+                "!pi ",          --pitch                    (3)
+                "!пл",         --play                     (4)
+                "!пер ",      --peremotka +time          (5) !per +50 !per -50
+                "!вкл ",      --on+ID                    (6)
+                "!моя",       --my music                 (7)
+                "!доб ",      --add to my music          (8) !dob №
+                "!удал ",    --remove from my music     (9)
+                "!след",     --next music               (10)
+                "!повтор", --reply                    (11)
+                "!2д",          --2d 3d changing           (12)
+                "!u ",           --url sound                (13)
+                "!r",            --random sound             (14)
+                "!!",            --search (!!zapros)        (15)
+                "!G+ ",          --add Ply to owners        (16)
+                "!G- ",          --delete Ply from owners   (17)
+                }  
