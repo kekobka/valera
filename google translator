@@ -108,7 +108,7 @@ hook.add('PlayerSay', 'PlayerSay', function(ply, text)
             end
             rawtranslate = response
             rawtranslate = Decode(finder(rawtranslate,'class="result-container"','</div>',1,string.len('class="result-container" '),-1,string.patternSafe("div")))
-            if text.."  (translated)" == rawtranslate then return end
+            if text == rawtranslate then return end
             print(team.getColor(ply:getTeam()),ply:getName(),Color(255,255,255),": "..rawtranslate,Color(255,0,0),"  (translated)")
         end)
     end
