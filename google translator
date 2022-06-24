@@ -42,15 +42,14 @@ local rawtranslate = ""
     
     local function execWorker(worker)
         local status
-    
+
         while canProcess() do
             status = worker()
-    
+            
             if status == 1 or status == 2 then
                 break
             end
         end
-    
         return status
     end
     
@@ -58,7 +57,7 @@ local rawtranslate = ""
         local i = 1
         while i <= #WORKERS do
             local status = execWorker(WORKERS[i])
-    
+
             if status == 2 then
                 table.remove(WORKERS, i)
             elseif status == 1 then
@@ -75,45 +74,42 @@ local rawtranslate = ""
     
     function addWorker(worker)
         local status = execWorker(worker)
-    
+
         if status ~= 2 then
             if #WORKERS == 0 then
                 hook.add("think", "workers_think", procWorkers)
+                
             end
     
             WORKERS[#WORKERS + 1] = worker
         end
     end
-hook.add('PlayerSay', 'PlayerSay', function(ply, text)
+
+hook.add('PlayerSay', 'PlayerSay', function(ply, text, TEAM)
     if text:sub(text:len()-string.len("  (translated)")+1) == '  (translated)' then return end
+    if text == rawtranslate then return end
+    local toTrans = ply == owner() and "https://translate.google.com/m?sl="..LANGfrom.."&tl="..LANGto.."&hl=auto&q="..http.urlEncode(text).."&hl=ru" or "https://translate.google.com/m?sl=auto&tl="..LANGfrom.."&hl=auto&q="..http.urlEncode(text).."&hl=ru"
     addWorker(coroutine.wrap(function()
         while not http.canRequest() do
             coroutine.yield(1)
         end
 
-    if ply == owner() then
-        http.get("https://translate.google.com/m?sl="..LANGfrom.."&tl="..LANGto.."&hl=auto&q="..http.urlEncode(text).."&hl=ru", function(response)
-            while not rawtranslate do
-                coroutine.yield(1)
-            end
-            rawtranslate = response
-            rawtranslate = Decode(finder(rawtranslate,'class="result-container"','</div>',1,string.len('class="result-container" '),-1,string.patternSafe("div")))
-            rawtranslate = rawtranslate.."  (translated)"
-            if text.."  (translated)" == rawtranslate then return end
-            owner():say(rawtranslate)
-        end)
-    end
-    if ply != owner() then
-        http.get("https://translate.google.com/m?sl=auto&tl="..LANGfrom.."&hl=auto&q="..http.urlEncode(text).."&hl=ru", function(response)
-            while not rawtranslate do
-                coroutine.yield(1)
-            end
-            rawtranslate = response
-            rawtranslate = Decode(finder(rawtranslate,'class="result-container"','</div>',1,string.len('class="result-container" '),-1,string.patternSafe("div")))
-            if text == rawtranslate then return end
-            print(team.getColor(ply:getTeam()),ply:getName(),Color(255,255,255),": "..rawtranslate,Color(255,0,0),"  (translated)")
-        end)
-    end
-        return 2
+            http.get(toTrans, function(response)
+                while not response do
+                    coroutine.yield(1)
+                end
+                rawtranslate = response
+                rawtranslate = Decode(finder(rawtranslate,'class="result-container"','</div>',1,string.len('class="result-container" '),-1,string.patternSafe("div")))
+                if ply != owner() then
+                    if text == rawtranslate then return end
+                    print(team.getColor(TEAM),ply:getName(),Color(255,255,255),": "..rawtranslate,Color(255,0,0),"  (translated)")
+                else
+                    rawtranslate = rawtranslate.."  (translated)"
+                    if text.."  (translated)" == rawtranslate then return end
+                    owner():say(rawtranslate,TEAM)
+                end
+            end)
+
+    return 2
     end))
 end)
