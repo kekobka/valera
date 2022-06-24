@@ -16,6 +16,8 @@ local function Decode(url)
 
     url = string.gsub(url, '&#39;', "'")
     url = string.gsub(url, '&quot;', '"')
+    url = string.gsub(url, '&lt;', '<')
+    url = string.gsub(url, '&gt;', '>')
 
     return url
 end
