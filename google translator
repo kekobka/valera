@@ -4,9 +4,7 @@
 
 local LANGfrom = "ru"
 local LANGto = "en"
-
-
-
+local hideMode = true
 
 
 
@@ -84,10 +82,11 @@ local rawtranslate = ""
             WORKERS[#WORKERS + 1] = worker
         end
     end
-
+    
 hook.add('PlayerSay', 'PlayerSay', function(ply, text, TEAM)
-    if text:sub(text:len()-string.len("  (translated)")+1) == '  (translated)' then return end
-    if text == rawtranslate then return end
+    hideText = hideMode and "    " or "  (translated)" 
+    if ply==owner() and text:sub(text:len()-string.len(hideText)+1) == hideText then return end
+    local rawtranslate = ""
     local toTrans = ply == owner() and "https://translate.google.com/m?sl="..LANGfrom.."&tl="..LANGto.."&hl=auto&q="..http.urlEncode(text).."&hl=ru" or "https://translate.google.com/m?sl=auto&tl="..LANGfrom.."&hl=auto&q="..http.urlEncode(text).."&hl=ru"
     addWorker(coroutine.wrap(function()
         while not http.canRequest() do
@@ -102,14 +101,17 @@ hook.add('PlayerSay', 'PlayerSay', function(ply, text, TEAM)
                 rawtranslate = Decode(finder(rawtranslate,'class="result-container"','</div>',1,string.len('class="result-container" '),-1,string.patternSafe("div")))
                 if ply != owner() then
                     if text == rawtranslate then return end
-                    print(team.getColor(TEAM),ply:getName(),Color(255,255,255),": "..rawtranslate,Color(255,0,0),"  (translated)")
+                    print(team.getColor(ply:getTeam()),ply:getName(),Color(255,255,255),": "..rawtranslate,Color(255,0,0),"  (translated)")
                 else
-                    rawtranslate = rawtranslate.."  (translated)"
-                    if text.."  (translated)" == rawtranslate then return end
+                    rawtranslate = rawtranslate..hideText
+                    if text == rawtranslate then return end
                     owner():say(rawtranslate,TEAM)
                 end
             end)
 
     return 2
     end))
+    if hideMode then
+    return rawtranslate
+    end
 end)
