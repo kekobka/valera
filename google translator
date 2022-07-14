@@ -7,26 +7,6 @@ local LANGto = "en"
 local hideMode = true
 
 
-
-
-local function Decode(url)
-
-
-    url = string.gsub(url, '&#39;', "'")
-    url = string.gsub(url, '&quot;', '"')
-    url = string.gsub(url, '&lt;', '<')
-    url = string.gsub(url, '&gt;', '>')
-
-    return url
-end
-
-function finder(txt,from,to,number,subFrom,subTo,pattern)
-    local F = string.find(txt,from,number,pattern)
-    if not F then return nil,"" end
-    local F2 = string.find(txt,to,F,pattern)
-    return  string.sub(txt,F+subFrom,F2+subTo)
-end
-local rawtranslate = ""
     WORKERS = {}
     WORKERS_QUOTA = 0.5
     
@@ -86,8 +66,9 @@ local rawtranslate = ""
 hook.add('PlayerSay', 'PlayerSay', function(ply, text, TEAM)
     hideText = hideMode and "    " or "  (translated)" 
     if ply==owner() and text:sub(text:len()-string.len(hideText)+1) == hideText then return end
-    local rawtranslate = ""
-    local toTrans = ply == owner() and "https://translate.google.com/m?sl="..LANGfrom.."&tl="..LANGto.."&hl=auto&q="..http.urlEncode(text).."&hl=ru" or "https://translate.google.com/m?sl=auto&tl="..LANGfrom.."&hl=auto&q="..http.urlEncode(text).."&hl=ru"
+    local rawtranslate = "" 
+    
+    local toTrans = ply == owner() and string.format("https://translate.googleapis.com/translate_a/single?client=gtx&sl=%s&tl=%s&dt=t&q=%s", LANGfrom, LANGto, http.urlEncode(text)) or string.format("https://translate.googleapis.com/translate_a/single?client=gtx&sl=%s&tl=%s&dt=t&q=%s", "auto", LANGfrom, http.urlEncode(text))
     addWorker(coroutine.wrap(function()
         while not http.canRequest() do
             coroutine.yield(1)
@@ -97,8 +78,8 @@ hook.add('PlayerSay', 'PlayerSay', function(ply, text, TEAM)
                 while not response do
                     coroutine.yield(1)
                 end
-                rawtranslate = response
-                rawtranslate = Decode(finder(rawtranslate,'class="result-container"','</div>',1,string.len('class="result-container" '),-1,string.patternSafe("div")))
+
+                rawtranslate = json.decode(response)[1][1][1]
                 if ply != owner() then
                     if text == rawtranslate then return end
                     print(team.getColor(ply:getTeam()),ply:getName(),Color(255,255,255),": "..rawtranslate,Color(255,0,0),"  (translated)")
